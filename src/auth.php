@@ -16,7 +16,7 @@ function requireLogin() {
 function login($username, $password) {
     $users = loadJson('users.json');
     foreach($users as $u) {
-        if($u['username']===$username && $u['password']===$password) { // simple hash can be added
+        if($u['username'] === $username && $u['password'] === $password) { // hashing optional
             $_SESSION['user'] = $username;
             return true;
         }

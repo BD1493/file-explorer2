@@ -10,14 +10,15 @@ WORKDIR /var/www/html/public
 # Copy project files
 COPY . /var/www/html/public/
 
-# Create necessary directories if they don't exist
-RUN mkdir -p /var/www/html/public/data /var/www/html/public/storage/users
+# Set Apache DocumentRoot to public/
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
-# Set permissions so Apache/PHP can write
-RUN chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage \
+# Create necessary directories and set permissions
+RUN mkdir -p /var/www/html/public/data /var/www/html/public/storage/users \
+    && chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage \
     && chmod -R 755 /var/www/html/public/data /var/www/html/public/storage
 
-# Increase upload size
+# Increase PHP upload size
 RUN echo "upload_max_filesize=50M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size=50M" >> /usr/local/etc/php/conf.d/uploads.ini
 
