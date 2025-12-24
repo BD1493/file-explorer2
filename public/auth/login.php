@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    $users = loadJson('../../data/users.json');
+    $users = loadJson('../public/data/users.json');
 
     foreach ($users as $u) {
         if ($u['username'] === $username &&

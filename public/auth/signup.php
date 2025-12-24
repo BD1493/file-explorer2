@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($username === '' || $password === '') {
         $error = "All fields are required.";
     } else {
-        $users = loadJson('../../data/users.json');
+        $users = loadJson('../public/data/users.json');
 
         foreach ($users as $u) {
             if ($u['username'] === $username) {
@@ -32,9 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 "created_at" => date('c')
             ];
 
-            saveJson('../../data/users.json', $users);
+            saveJson('../public/data/users.json', $users);
 
-            $userDir = "../../storage/users/$username";
+            $userDir = "../public/storage/users/$username";
             if (!is_dir($userDir)) {
                 mkdir($userDir, 0755, true);
             }

@@ -1,25 +1,29 @@
+# Use official PHP with Apache
 FROM php:8.2-apache
 
-# Enable mod_rewrite
+# Set working directory to public
+WORKDIR /var/www/html/public
+
+# Copy all project files into public
+COPY . /var/www/html/public/
+
+# Enable Apache rewrite module
 RUN a2enmod rewrite
 
-# Set Apache DocumentRoot to project root (since index.php is in main directory)
-RUN sed -i 's|/var/www/html|/var/www/html|g' /etc/apache2/sites-available/000-default.conf
+# Update Apache config to use public as DocumentRoot
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
-# Copy all project files
-COPY . /var/www/html/
+# Create data and storage folders inside public
+RUN mkdir -p /var/www/html/public/data /var/www/html/public/storage/users \
+    && chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage \
+    && chmod -R 755 /var/www/html/public/data /var/www/html/public/storage
 
-# Set working directory
-WORKDIR /var/www/html
-
-# Create data/storage directories inside public and set permissions
-RUN mkdir -p public/data public/storage/users \
-    && chown -R www-data:www-data public/data public/storage \
-    && chmod -R 755 public/data public/storage
-
-# Increase PHP upload limits
+# Set PHP upload limits
 RUN echo "upload_max_filesize=50M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size=50M" >> /usr/local/etc/php/conf.d/uploads.ini
 
+# Expose port 80
 EXPOSE 80
+
+# Start Apache in foreground
 CMD ["apache2-foreground"]
