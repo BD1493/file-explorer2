@@ -4,7 +4,7 @@ require_once '../../src/json.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../public/data/files.json');
+$files = loadJson('../data/files.json');
 
 $publicFiles = array_filter($files, fn($f)=>$f['visibility']==='public');
 ?>
@@ -12,7 +12,7 @@ $publicFiles = array_filter($files, fn($f)=>$f['visibility']==='public');
 <html>
 <head>
     <title>Public Files</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="public/assets/css/style.css">
 </head>
 <body>
 <h2>Public Files</h2>

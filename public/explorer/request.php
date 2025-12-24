@@ -4,7 +4,7 @@ require_once '../../src/json.php';
 requireLogin();
 
 $user = currentUser();
-$requests = loadJson('../public/data/requests.json');
+$requests = loadJson('../data/requests.json');
 
 $success = '';
 
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'note'=>$note,
         'created_at'=>date('c')
     ];
-    saveJson('../public/data/requests.json', $requests);
+    saveJson('../data/requests.json', $requests);
     $success = "Request submitted successfully!";
 }
 ?>
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html>
 <head>
     <title>Request Access</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="public/assets/css/style.css">
 </head>
 <body>
 <h2>Request Access</h2>

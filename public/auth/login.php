@@ -3,7 +3,7 @@ require_once '../../src/json.php';
 session_start();
 
 if (isset($_SESSION['user'])) {
-    header("Location: /explorer/dashboard.php");
+    header("Location: public/explorer/dashboard.php");
     exit;
 }
 
@@ -13,14 +13,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    $users = loadJson('../public/data/users.json');
+    $users = loadJson('../data/users.json');
 
     foreach ($users as $u) {
         if ($u['username'] === $username &&
             password_verify($password, $u['password'])) {
 
             $_SESSION['user'] = $username;
-            header("Location: /explorer/dashboard.php");
+            header("Location: public/explorer/dashboard.php");
             exit;
         }
     }
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html>
 <head>
   <title>Login</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="public/assets/css/style.css">
 </head>
 <body>
 <h2>Login</h2>

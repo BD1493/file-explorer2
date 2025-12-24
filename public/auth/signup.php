@@ -3,7 +3,7 @@ require_once '../../src/json.php';
 session_start();
 
 if (isset($_SESSION['user'])) {
-    header("Location: /explorer/dashboard.php");
+    header("Location: public/explorer/dashboard.php");
     exit;
 }
 
@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($username === '' || $password === '') {
         $error = "All fields are required.";
     } else {
-        $users = loadJson('../public/data/users.json');
+        $users = loadJson('../data/users.json');
 
         foreach ($users as $u) {
             if ($u['username'] === $username) {
@@ -32,15 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 "created_at" => date('c')
             ];
 
-            saveJson('../public/data/users.json', $users);
+            saveJson('../data/users.json', $users);
 
-            $userDir = "../public/storage/users/$username";
+            $userDir = "../storage/users/$username";
             if (!is_dir($userDir)) {
                 mkdir($userDir, 0755, true);
             }
 
             $_SESSION['user'] = $username;
-            header("Location: /explorer/dashboard.php");
+            header("Location: public/explorer/dashboard.php");
             exit;
         }
     }
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html>
 <head>
   <title>Sign Up</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="public/assets/css/style.css">
 </head>
 <body>
 <h2>Create Account</h2>

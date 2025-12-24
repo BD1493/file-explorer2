@@ -5,7 +5,7 @@ require_once '../../src/permissions.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../public/data/files.json');
+$files = loadJson('../data/files.json');
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html>
 <head>
     <title>Create File/Studio</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="public/assets/css/style.css">
 </head>
 <body>
 <h2>Create File / Studio</h2>

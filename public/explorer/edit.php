@@ -5,7 +5,7 @@ require_once '../../src/permissions.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../public/data/files.json');
+$files = loadJson('../data/files.json');
 
 if (!isset($_GET['id'])) die("File ID missing");
 $fileId = $_GET['id'];
@@ -16,7 +16,7 @@ if (!$file) die("File not found");
 
 if (!checkPermission($fileId, $user, 'edit')) die("No permission to edit");
 
-$filePath = "../../" . $file['path'];
+$filePath = "../" . $file['path'];
 $content = file_exists($filePath) ? file_get_contents($filePath) : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['content'])) {

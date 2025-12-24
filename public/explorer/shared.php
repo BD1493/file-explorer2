@@ -4,8 +4,8 @@ require_once '../../src/json.php';
 requireLogin();
 
 $user = currentUser();
-$shares = loadJson('../public/data/shares.json');
-$files = loadJson('../public/data/files.json');
+$shares = loadJson('../data/shares.json');
+$files = loadJson('../data/files.json');
 
 $success = '';
 $error = '';
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html>
 <head>
     <title>Get Shared File</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="public/assets/css/style.css">
 </head>
 <body>
 <h2>Access Shared File</h2>

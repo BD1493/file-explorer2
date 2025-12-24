@@ -5,8 +5,8 @@ require_once '../../src/permissions.php';
 requireLogin();
 
 $user = currentUser();
-$shares = loadJson('../public/data/shares.json');
-$files = loadJson('../public/data/files.json');
+$shares = loadJson('../data/shares.json');
+$files = loadJson('../data/files.json');
 
 if (!isset($_GET['id'])) die("File ID missing");
 $fileId = $_GET['id'];
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'visibility'=>$visibility, // NEW
         'created_at'=>date('c')
     ];
-    saveJson('../public/data/shares.json',$shares);
+    saveJson('../data/shares.json',$shares);
     $success = "File shared with $shareUser (password: $password, visibility: $visibility)";
 }
 ?>
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html>
 <head>
     <title>Share <?= htmlspecialchars($file['filename']) ?></title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="public/assets/css/style.css">
 </head>
 <body>
 <h2>Share <?= htmlspecialchars($file['filename']) ?></h2>
