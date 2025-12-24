@@ -1,10 +1,12 @@
 <?php
-function loadJson(string $file): array {
-    if (!file_exists($file)) file_put_contents($file, json_encode([], JSON_PRETTY_PRINT));
-    $data = json_decode(file_get_contents($file), true);
-    return is_array($data) ? $data : [];
+function loadJson($filePath) {
+    $fullPath = __DIR__ . '/../public/data/' . basename($filePath);
+    if(!file_exists($fullPath)) return [];
+    $content = file_get_contents($fullPath);
+    return json_decode($content, true) ?? [];
 }
 
-function saveJson(string $file, array $data): void {
-    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
+function saveJson($filePath, $data) {
+    $fullPath = __DIR__ . '/../public/data/' . basename($filePath);
+    file_put_contents($fullPath, json_encode($data, JSON_PRETTY_PRINT));
 }

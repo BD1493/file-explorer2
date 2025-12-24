@@ -1,34 +1,26 @@
-# Use official PHP with Apache
+# Use official PHP Apache image
 FROM php:8.2-apache
 
-# Enable Apache rewrite module
+# Enable mod_rewrite
 RUN a2enmod rewrite
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /var/www/html/public
 
-# Copy all project files into container
-COPY . .
+# Copy project files
+COPY . /var/www/html/public/
 
-# Create necessary directories
-RUN mkdir -p data storage/users
+# Create necessary directories if they don't exist
+RUN mkdir -p /var/www/html/public/data /var/www/html/public/storage/users
 
-# Set ownership and permissions
-RUN chown -R www-data:www-data data storage
-RUN chmod -R 755 data storage
+# Set permissions so Apache/PHP can write
+RUN chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage \
+    && chmod -R 755 /var/www/html/public/data /var/www/html/public/storage
 
-# Increase PHP upload limits
+# Increase upload size
 RUN echo "upload_max_filesize=50M" > /usr/local/etc/php/conf.d/uploads.ini \
- && echo "post_max_size=50M" >> /usr/local/etc/php/conf.d/uploads.ini
+    && echo "post_max_size=50M" >> /usr/local/etc/php/conf.d/uploads.ini
 
-# Update Apache configuration to point to public folder
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
-
-# Optional: suppress FQDN warning
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
-
-# Expose port 80
 EXPOSE 80
 
-# Start Apache in foreground
 CMD ["apache2-foreground"]

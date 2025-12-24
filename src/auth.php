@@ -1,4 +1,29 @@
 <?php
+require_once 'json.php';
 session_start();
-function requireLogin(): void { if (!isset($_SESSION['user'])) header("Location: /auth/login.php"); }
-function currentUser(): ?string { return $_SESSION['user'] ?? null; }
+
+function currentUser() {
+    return $_SESSION['user'] ?? null;
+}
+
+function requireLogin() {
+    if(!currentUser()) {
+        header('Location: /auth/login.php');
+        exit;
+    }
+}
+
+function login($username, $password) {
+    $users = loadJson('users.json');
+    foreach($users as $u) {
+        if($u['username']===$username && $u['password']===$password) { // simple hash can be added
+            $_SESSION['user'] = $username;
+            return true;
+        }
+    }
+    return false;
+}
+
+function logout() {
+    session_destroy();
+}
