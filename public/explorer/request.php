@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'note'=>$note,
         'created_at'=>date('c')
     ];
-    saveJson('../../data/requests.json', $requests);
+    saveJson('../data/requests.json', $requests);
     $success = "Request submitted successfully!";
 }
 ?>

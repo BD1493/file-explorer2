@@ -5,7 +5,7 @@ require_once '../../src/permissions.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../../data/files.json');
+$files = loadJson('../data/files.json');
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isStudio = isset($_POST['is_studio']);
     if ($filename === '') die("Filename required");
 
-    $path = "../../storage/users/$user/$filename";
+    $path = "../storage/users/$user/$filename";
     if ($isStudio) mkdir($path, 0755, true);
     else file_put_contents($path, '');
 
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         "visibility" => "private",
         "created_at" => date('c')
     ];
-    saveJson('../../data/files.json', $files);
+    saveJson('../data/files.json', $files);
     $success = "Created $filename successfully";
 }
 ?>

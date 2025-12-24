@@ -5,7 +5,7 @@ require_once '../../src/permissions.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../../data/files.json');
+$files = loadJson('../data/files.json');
 
 function displayFile($file) {
     echo "<li data-file-id='{$file['id']}'>";
@@ -31,6 +31,7 @@ function displayFile($file) {
 </head>
 <body>
 <h2>Welcome, <?= htmlspecialchars($user) ?></h2>
+
 <ul id="file-list">
 <?php
 foreach($files as $f) {
@@ -39,10 +40,13 @@ foreach($files as $f) {
 ?>
 </ul>
 
+<!-- Buttons -->
 <a href="/explorer/create.php" class="btn">Create File/Studio</a>
 <a href="/explorer/upload.php" class="btn">Upload File</a>
+<a href="/explorer/shared.php" class="btn">Get Shared File</a> <!-- NEW THIRD BUTTON -->
 <a href="/auth/logout.php" class="btn">Logout</a>
 
+<!-- Modal for sharing -->
 <div id="modal" class="hidden">
   <div id="modal-content">
     <span id="modal-close">&times;</span>
