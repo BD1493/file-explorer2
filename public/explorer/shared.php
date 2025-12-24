@@ -1,76 +1,19 @@
-<?php
-require_once '../../src/auth.php';
-requireLogin();
-
-$error = null;
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $inputName = $_POST['share_name'];
-    $inputPass = $_POST['share_pass'];
-    
-    $shares = getShares();
-    $found = false;
-    
-    foreach ($shares as $s) {
-        // Match Share Name
-        if ($s['share_name'] === $inputName) {
-            // Check Password (if not public)
-            if ($s['is_public'] || $s['password'] === $inputPass) {
-                // Success! Unlock it for this session
-                if (!isset($_SESSION['unlocked_shares'])) {
-                    $_SESSION['unlocked_shares'] = [];
-                }
-                // Avoid duplicates
-                $_SESSION['unlocked_shares'] = array_filter($_SESSION['unlocked_shares'], function($item) use ($s) {
-                    return $item['share_name'] !== $s['share_name'];
-                });
-                $_SESSION['unlocked_shares'][] = $s;
-                $found = true;
-            }
+<?php require_once '../../src/auth.php'; requireLogin();
+if($_POST){
+    $shares = getJSON('shares.json'); $found = false;
+    foreach($shares as $s){
+        if($s['share_name']===$_POST['sn'] && ($s['is_public'] || $s['password']===$_POST['sp'])){
+            $_SESSION['unlocked_shares'][] = $s; $found = true;
         }
     }
-    
-    if (!$found) {
-        $error = "Invalid Share Name or Password.";
-        $showRequest = true;
-    }
-}
-
-$unlocked = $_SESSION['unlocked_shares'] ?? [];
-?>
-<!DOCTYPE html>
-<html>
-<head><link rel="stylesheet" href="../assets/css/style.css"></head>
-<body>
+    if(!$found) $err = "Not found.";
+} $unl = $_SESSION['unlocked_shares'] ?? []; ?>
+<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
 <div class="container">
-    <h2>Access Shared Files</h2>
-    <a href="dashboard.php" class="btn btn-secondary">Back</a>
-    <hr>
-    
-    <div style="background:#f9f9f9; padding:15px; border-radius:5px; margin-bottom:20px;">
-        <h3>Find a File</h3>
-        <?php if($error) echo "<div class='alert'>$error</div>"; ?>
-        <form method="POST">
-            <input type="text" name="share_name" placeholder="Enter Share Name (e.g. myproject)" required>
-            <input type="text" name="share_pass" placeholder="Enter Password (if private)">
-            <button class="btn">Get File</button>
-        </form>
-        
-        <?php if(isset($showRequest)): ?>
-            <br>
-            <p>Access Denied. <a href="request.php" class="btn" style="background:orange;">Request Access</a></p>
-        <?php endif; ?>
-    </div>
-
-    <h3>Unlocked Files</h3>
-    <ul class="file-list">
-        <?php foreach ($unlocked as $share): ?>
-            <li class="file-item">
-                <span><b><?php echo htmlspecialchars($share['filename']); ?></b> (<?php echo $share['permission']; ?>)</span>
-                <a href="edit.php?file=<?php echo urlencode($share['filename']); ?>&owner=<?php echo urlencode($share['owner']); ?>" class="btn">Open</a>
-            </li>
-        <?php endforeach; ?>
-    </ul>
-</div>
-</body>
-</html>
+    <div class="nav"><h2>Find Private Share</h2><a href="dashboard.php" class="btn btn-secondary">Back</a></div>
+    <form method="POST"><input type="text" name="sn" placeholder="Share Alias"><input type="text" name="sp" placeholder="Password"><button class="btn btn-primary">Unlock</button></form>
+    <h3>Unlocked:</h3>
+    <?php foreach($unl as $u): ?>
+        <div class="file-item"><span><?php echo $u['filename']; ?></span> <a href="edit.php?file=<?php echo urlencode($u['filename']); ?>&owner=<?php echo urlencode($u['owner']); ?>" class="btn btn-secondary">Open</a></div>
+    <?php endforeach; ?>
+</div></body></html>
