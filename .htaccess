@@ -1,6 +1,0 @@
-# Enable rewrite for Apache
-Options +FollowSymLinks
-RewriteEngine On
-
-# Set default index
-DirectoryIndex index.php index.html index.htm
