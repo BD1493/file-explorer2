@@ -1,7 +1,6 @@
+# Enable rewrite for Apache
+Options +FollowSymLinks
 RewriteEngine On
 
-RewriteRule ^(data|storage)/ - [F,L]
-
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [L]
+# Set default index
+DirectoryIndex index.php index.html index.htm
