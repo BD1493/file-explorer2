@@ -2,7 +2,7 @@
 session_start();
 
 if (isset($_SESSION['user'])) {
-    header("Location: /explorer/dashboard.php");
+    header("Location: public/explorer/dashboard.php");
     exit;
 }
 ?>
@@ -17,6 +17,6 @@ if (isset($_SESSION['user'])) {
   <h1>📁 File Explorer</h1>
   <p>Secure file creation, sharing, and collaboration.</p>
 
-  <a href="/auth/signup.php" class="btn">Enter File Explorer</a>
+  <a href="public/auth/signup.php" class="btn">Enter File Explorer</a>
 </body>
 </html>
