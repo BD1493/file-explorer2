@@ -4,7 +4,7 @@ require_once '../../src/json.php';
 requireLogin();
 
 $user = currentUser();
-$requests = loadJson('../../data/requests.json');
+$requests = loadJson('../public/data/requests.json');
 
 $success = '';
 
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'note'=>$note,
         'created_at'=>date('c')
     ];
-    saveJson('../data/requests.json', $requests);
+    saveJson('../public/data/requests.json', $requests);
     $success = "Request submitted successfully!";
 }
 ?>

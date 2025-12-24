@@ -4,13 +4,13 @@ require_once '../../src/json.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../data/files.json');
+$files = loadJson('../public/data/files.json');
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     $upload = $_FILES['file'];
     $filename = basename($upload['name']);
-    $targetPath = "../storage/users/$user/$filename";
+    $targetPath = "../public/storage/users/$user/$filename";
     move_uploaded_file($upload['tmp_name'], $targetPath);
 
     $files[] = [
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
         "visibility" => "private",
         "created_at" => date('c')
     ];
-    saveJson('../data/files.json', $files);
+    saveJson('../public/data/files.json', $files);
     $success = "Uploaded $filename successfully";
 }
 ?>

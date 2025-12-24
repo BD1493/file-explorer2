@@ -5,7 +5,7 @@ require_once '../../src/permissions.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../data/files.json');
+$files = loadJson('../public/data/files.json');
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -4,7 +4,7 @@ require_once '../../src/json.php';
 requireLogin();
 
 $user = currentUser();
-$files = loadJson('../data/files.json');
+$files = loadJson('../public/data/files.json');
 
 $publicFiles = array_filter($files, fn($f)=>$f['visibility']==='public');
 ?>

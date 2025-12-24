@@ -4,8 +4,8 @@ require_once '../../src/json.php';
 requireLogin();
 
 $user = currentUser();
-$shares = loadJson('../data/shares.json');
-$files = loadJson('../data/files.json');
+$shares = loadJson('../public/data/shares.json');
+$files = loadJson('../public/data/files.json');
 
 $success = '';
 $error = '';
