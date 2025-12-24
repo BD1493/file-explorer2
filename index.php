@@ -8,8 +8,7 @@
 </head>
 <body>
     <div class="container" style="text-align:center; margin-top:50px;">
-        <h1>Welcome to File Explorer</h1>
-        <p>Manage your files simply and securely.</p>
+        <h1>File Explorer</h1>
         <br>
         <a href="/public/auth/login.php" class="btn">File Explorer</a>
     </div>

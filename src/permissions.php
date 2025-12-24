@@ -1,20 +1,27 @@
 <?php
 require_once __DIR__ . '/json.php';
 
-function canEdit($username, $filename, $owner) {
-    // Owner can always edit
-    if ($username === $owner) return true;
+function canAccess($username, $filename, $owner) {
+    // 1. Owner always access
+    if ($username === $owner) return 'edit';
     
-    // Check shares
-    $shares = getShares();
-    foreach ($shares as $share) {
-        if ($share['filename'] === $filename && 
-            $share['owner'] === $owner && 
-            $share['shared_with'] === $username && 
-            $share['permission'] === 'edit') {
-            return true;
+    // 2. Check Unlocked Shares (Session based)
+    if (isset($_SESSION['unlocked_shares'])) {
+        foreach ($_SESSION['unlocked_shares'] as $s) {
+            if ($s['filename'] === $filename && $s['owner'] === $owner) {
+                return $s['permission']; // 'edit' or 'view'
+            }
         }
     }
+
+    // 3. Check Public Shares
+    $shares = getShares();
+    foreach ($shares as $s) {
+        if ($s['filename'] === $filename && $s['owner'] === $owner && $s['is_public']) {
+            return $s['permission'];
+        }
+    }
+    
     return false;
 }
 ?>

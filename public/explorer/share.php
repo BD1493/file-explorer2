@@ -1,68 +1,73 @@
 <?php
 require_once '../../src/auth.php';
 requireLogin();
-
 $file = $_GET['file'];
 $user = currentUser();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $shareUser = $_POST['username'];
-    $permission = $_POST['permission']; // 'view' or 'edit'
-    $password = $_POST['password'];
+    $isPublic = isset($_POST['is_public']);
+    $shareName = $_POST['share_name'] ?? '';
+    $password = $_POST['password'] ?? '';
     
-    if (empty($password)) {
-        $password = generateRandomString(4);
+    // If public, we generate a random share name to identify it easily or use filename
+    if ($isPublic) {
+        $shareName = "public_" . uniqid(); 
+        $password = "";
     }
 
     $shares = getShares();
     $shares[] = [
         'owner' => $user,
         'filename' => $file,
-        'shared_with' => $shareUser,
-        'permission' => $permission, // public/private logic simplified to user target
+        'share_name' => $shareName, // The "username/alias" you give to a friend
         'password' => $password,
-        'is_public' => isset($_POST['is_public'])
+        'permission' => $_POST['permission'], // view or edit
+        'is_public' => $isPublic
     ];
     saveShares($shares);
     
-    $success = "Shared with $shareUser! Password: $password";
+    if($isPublic) {
+        $success = "File is Public! Share Name ID: $shareName";
+    } else {
+        $success = "Shared! Give your friend this Name: '$shareName' and Password: '$password'";
+    }
 }
-
-$users = getUsers();
 ?>
 <!DOCTYPE html>
 <html>
-<head><link rel="stylesheet" href="../assets/css/style.css"></head>
+<head>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js"></script>
+</head>
 <body>
 <div class="container">
-    <h2>Share File: <?php echo htmlspecialchars($file); ?></h2>
+    <h2>Share: <?php echo htmlspecialchars($file); ?></h2>
     <?php if(isset($success)) echo "<div class='alert' style='background:#d4edda;color:#155724'>$success</div>"; ?>
     
     <form method="POST">
-        <label>Share with Username:</label>
-        <select name="username">
-            <?php foreach($users as $u): ?>
-                <?php if($u['username'] !== $user): ?>
-                    <option value="<?php echo $u['username']; ?>"><?php echo $u['username']; ?></option>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </select>
-        
         <label>Permission:</label>
         <select name="permission">
             <option value="view">View Only</option>
-            <option value="edit">Can Edit</option>
+            <option value="edit">Edit</option>
         </select>
-
-        <label>Password (Optional - default random 4 chars):</label>
-        <input type="text" name="password" placeholder="Leave empty for random">
+        <br><br>
         
         <label>
-            <input type="checkbox" name="is_public" style="width:auto;"> Make Public (Anyone with link/pass)
+            <input type="checkbox" id="is_public" name="is_public" onclick="toggleShareFields()"> 
+            Make Public (No password needed)
         </label>
         <br><br>
-        <button type="submit" class="btn">Share</button>
-        <a href="dashboard.php" class="btn btn-secondary">Cancel</a>
+
+        <div id="private_fields">
+            <label>Share Name (Give this name to your friend):</label>
+            <input type="text" id="share_name" name="share_name" placeholder="e.g. myproject">
+            
+            <label>Password (Optional):</label>
+            <input type="text" id="share_pass" name="password" placeholder="Secret123">
+        </div>
+        
+        <button type="submit" class="btn">Share File</button>
+        <a href="dashboard.php" class="btn btn-secondary">Back</a>
     </form>
 </div>
 </body>

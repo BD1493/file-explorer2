@@ -14,14 +14,9 @@ RUN echo "upload_max_filesize=50M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size=50M" >> /usr/local/etc/php/conf.d/uploads.ini
 
 # PERMISSIONS:
-# We grant www-data (Apache) full ownership of public/data and public/storage
-# We set permissions to 777 to ensure no permission denied errors occur
+# Publicly accessible data and storage, full 777 permissions
 RUN chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage \
     && chmod -R 777 /var/www/html/public/data /var/www/html/public/storage
 
 # Expose port 80
 EXPOSE 80
-# Start Apache server
-CMD ["apache2-foreground"]
-# End of Dockerfile
-

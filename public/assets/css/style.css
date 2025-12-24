@@ -2,11 +2,12 @@ body { font-family: sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
 .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
 h1, h2 { color: #333; }
 input, select, textarea { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
-.btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border: none; cursor: pointer; border-radius: 4px; }
+.btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border: none; cursor: pointer; border-radius: 4px; font-size:14px; }
 .btn:hover { background: #0056b3; }
 .btn-secondary { background: #6c757d; }
 .file-list { list-style: none; padding: 0; }
 .file-item { background: #eee; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
-.alert { padding: 10px; background: #f8d7da; color: #721c24; margin-bottom: 10px; }
+.alert { padding: 10px; background: #f8d7da; color: #721c24; margin-bottom: 10px; border-radius: 4px;}
 .nav { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
 .nav a { margin-right: 15px; text-decoration: none; color: #333; font-weight: bold; }
+.hidden { display: none; }

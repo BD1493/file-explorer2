@@ -2,9 +2,7 @@
 session_start();
 require_once __DIR__ . '/json.php';
 
-function isLoggedIn() {
-    return isset($_SESSION['user']);
-}
+function isLoggedIn() { return isset($_SESSION['user']); }
 
 function requireLogin() {
     if (!isLoggedIn()) {
@@ -13,7 +11,5 @@ function requireLogin() {
     }
 }
 
-function currentUser() {
-    return $_SESSION['user'] ?? null;
-}
+function currentUser() { return $_SESSION['user'] ?? null; }
 ?>
