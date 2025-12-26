@@ -1,30 +1,17 @@
 <?php
 require_once '../../src/json.php'; session_start();
-$user = $_SESSION['user'];
-$file = $_GET['file'];
-$path = $_GET['path']; // Folder context
+$user = $_SESSION['user']; $file = $_GET['file']; $path = $_GET['path'];
 $shares = getJSON('shares');
 
-// 1. Create Share
-if(isset($_POST['create_share'])) {
-    $newShare = [
-        'id' => uniqid(),
-        'owner' => $user,
-        'path' => $path,
-        'file' => $file,
-        'alias' => $_POST['alias'],
-        'pass' => $_POST['pass'],
-        'perm' => $_POST['perm']
-    ];
-    $shares[] = $newShare;
-    saveJSON('shares', $shares);
-}
-// 2. Unshare
-if(isset($_POST['delete_share'])) {
-    foreach($shares as $k => $s) {
-        if($s['alias'] === $_POST['del_alias'] && $s['owner'] === $user) {
-            unset($shares[$k]);
-        }
+if($_POST) {
+    if(isset($_POST['del'])) {
+        foreach($shares as $k=>$s) if($s['alias']===$_POST['del']) unset($shares[$k]);
+    } else {
+        $shares[] = [
+            'owner'=>$user, 'path'=>$path, 'file'=>$file, 
+            'alias'=>$_POST['alias'], 'pass'=>$_POST['pass'], 
+            'perm'=>$_POST['perm'], 'is_public'=>isset($_POST['is_public'])
+        ];
     }
     saveJSON('shares', array_values($shares));
 }
@@ -32,27 +19,20 @@ if(isset($_POST['delete_share'])) {
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"></head><body>
 <div class="container" style="max-width:500px;">
     <div class="card">
-        <h3>Share "<?php echo $file; ?>"</h3>
+        <h3>Share Settings for "<?php echo $file; ?>"</h3>
         <form method="POST">
-            <input type="hidden" name="create_share" value="1">
-            <label>Share Alias (Unique Name)</label>
-            <input type="text" name="alias" required placeholder="e.g. SecretDoc1">
-            <label>Password</label>
-            <input type="text" name="pass" required placeholder="Secure Password">
-            <label>Permission</label>
-            <select name="perm"><option value="view">View Only</option><option value="edit">Edit</option></select>
-            <button class="btn btn-primary" style="width:100%">Create Share Link</button>
+            <label><b>Public Gallery?</b> <input type="checkbox" name="is_public"></label>
+            <input type="text" name="alias" placeholder="Unique Share Name (ID)" required>
+            <input type="text" name="pass" placeholder="Password (Optional)">
+            <select name="perm"><option value="view">View Only</option><option value="edit">Allow Editing</option></select>
+            <button class="btn btn-primary" style="width:100%">Create Share</button>
         </form>
         <hr>
         <h4>Active Shares</h4>
-        <?php foreach($shares as $s): if($s['file'] === $file && $s['owner'] === $user): ?>
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
-                <span><b><?php echo $s['alias']; ?></b> (Pass: <?php echo $s['pass']; ?>)</span>
-                <form method="POST" style="margin:0;">
-                    <input type="hidden" name="delete_share" value="1">
-                    <input type="hidden" name="del_alias" value="<?php echo $s['alias']; ?>">
-                    <button class="btn btn-danger" style="padding:2px 8px; font-size:12px;">Unshare</button>
-                </form>
+        <?php foreach($shares as $s): if($s['file']===$file && $s['owner']===$user): ?>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>ID: <b><?php echo $s['alias']; ?></b> <?php if($s['is_public']) echo "(Public)"; ?></span>
+                <form method="POST" style="margin:0"><input type="hidden" name="del" value="<?php echo $s['alias']; ?>"><button class="btn btn-danger">Delete</button></form>
             </div>
         <?php endif; endforeach; ?>
         <br><a href="dashboard.php" class="btn">Back</a>
