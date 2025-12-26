@@ -1,291 +1,494 @@
-# 1. Setup the folder structure
-rm -rf file-explorer
-mkdir -p file-explorer/public/assets/{css,js}
-mkdir -p file-explorer/public/{auth,explorer,data,storage/users}
-mkdir -p file-explorer/src
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    # 1. Wipe and Recreate Directory Structure
+rm -rf mega-drive
+mkdir -p mega-drive/public/{auth,explorer,data,storage/users}
+mkdir -p mega-drive/src
+mkdir -p mega-drive/public/assets/{css,js}
 
-# 2. Dockerfile for Render
-cat << 'EOF' > file-explorer/Dockerfile
+# --- CRITICAL FIX: PRE-CREATE DATABASE FILES ---
+# We create these NOW so they exist before Docker even builds.
+echo "[]" > mega-drive/public/data/users.json
+echo "[]" > mega-drive/public/data/shares.json
+echo "{}" > mega-drive/public/data/chats.json
+chmod 777 mega-drive/public/data/*.json
+
+# 2. Dockerfile (Permissions Guaranteed)
+cat << 'EOF' > mega-drive/Dockerfile
 FROM php:8.2-apache
 RUN a2enmod rewrite
 WORKDIR /var/www/html
 COPY . /var/www/html/
-RUN echo "upload_max_filesize=50M\npost_max_size=50M" > /usr/local/etc/php/conf.d/uploads.ini
-RUN chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage && chmod -R 777 /var/www/html/public/data /var/www/html/public/storage
+
+# CRITICAL: Grant full read/write to the web server for data and storage
+RUN chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage
+RUN chmod -R 777 /var/www/html/public/data /var/www/html/public/storage
+
+# PHP Limits
+RUN echo "upload_max_filesize=64M" > /usr/local/etc/php/conf.d/uploads.ini
+RUN echo "post_max_size=64M" >> /usr/local/etc/php/conf.d/uploads.ini
 EXPOSE 80
 EOF
 
-# 3. Logic: JSON and Permissions
-cat << 'EOF' > file-explorer/src/json.php
-<?php
-define('BASE_PATH', dirname(__DIR__)); 
-define('DATA_PATH', BASE_PATH . '/public/data');
-define('STORAGE_PATH', BASE_PATH . '/public/storage');
-function getJSON($f) { $p=DATA_PATH."/$f"; return file_exists($p)?json_decode(file_get_contents($p),true)??[]:[]; }
-function saveJSON($f,$d) { file_put_contents(DATA_PATH."/$f", json_encode($d, JSON_PRETTY_PRINT)); }
-?>
+# 3. CSS (Responsive & Clean)
+cat << 'EOF' > mega-drive/public/assets/css/style.css
+:root { --blue: #1a73e8; --bg: #f8f9fa; --border: #dadce0; --text: #3c4043; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+a { text-decoration: none; color: inherit; }
+.nav { background: white; border-bottom: 1px solid var(--border); padding: 0 20px; height: 60px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.logo { font-size: 20px; font-weight: 500; color: #5f6368; display: flex; align-items: center; gap: 8px; }
+.container { flex: 1; overflow-y: auto; padding: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+.btn { padding: 8px 16px; border-radius: 4px; border: 1px solid var(--border); background: white; cursor: pointer; font-size: 14px; font-weight: 500; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+.btn-primary { background: var(--blue); color: white; border: none; }
+.btn-primary:hover { background: #1557b0; }
+.btn-danger { color: #d93025; border-color: #f28b82; }
+.card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+.file-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.file-card:hover { background: #e8f0fe; border-color: var(--blue); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.icon { font-size: 48px; margin-bottom: 10px; display: block; }
+.filename { font-size: 13px; font-weight: 500; word-break: break-word; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.meta { font-size: 11px; color: #5f6368; margin-top: 5px; }
+input[type="text"], input[type="password"], select { width: 100%; padding: 10px; margin: 8px 0 15px; border: 1px solid var(--border); border-radius: 4px; }
+#editor { width: 100%; height: calc(100vh - 60px); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal { background: white; padding: 30px; border-radius: 8px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 EOF
 
-cat << 'EOF' > file-explorer/src/auth.php
+# 4. JSON Logic (Self-Repairing)
+cat << 'EOF' > mega-drive/src/json.php
 <?php
-session_start();
-require_once __DIR__ . '/json.php';
-function isLoggedIn() { return isset($_SESSION['user']); }
-function requireLogin() { if (!isLoggedIn()) { header('Location: /public/auth/login.php'); exit; } }
-function currentUser() { return $_SESSION['user'] ?? null; }
-?>
-EOF
+define('DATA_PATH', __DIR__ . '/../public/data');
+define('STORAGE_PATH', __DIR__ . '/../public/storage');
 
-cat << 'EOF' > file-explorer/src/permissions.php
-<?php
-require_once __DIR__ . '/json.php';
-function canAccess($username, $filename, $owner) {
-    if ($username === $owner) return 'edit';
-    $shares = getJSON('shares.json');
-    if (isset($_SESSION['unlocked_shares'])) {
-        foreach ($_SESSION['unlocked_shares'] as $s) {
-            if ($s['filename'] === $filename && $s['owner'] === $owner) return $s['permission'];
-        }
-    }
-    foreach ($shares as $s) {
-        if ($s['filename'] === $filename && $s['owner'] === $owner && ($s['is_public'] ?? false)) return $s['permission'];
-    }
-    return false;
+// --- SELF REPAIR SYSTEM ---
+// If the folder is empty or files are missing, recreate them immediately.
+if (!file_exists(DATA_PATH)) { mkdir(DATA_PATH, 0777, true); }
+
+if (!file_exists(DATA_PATH.'/users.json')) {
+    file_put_contents(DATA_PATH.'/users.json', '[]');
+}
+if (!file_exists(DATA_PATH.'/shares.json')) {
+    file_put_contents(DATA_PATH.'/shares.json', '[]');
+}
+if (!file_exists(DATA_PATH.'/chats.json')) {
+    file_put_contents(DATA_PATH.'/chats.json', '{}');
+}
+
+function getJSON($file) {
+    $path = DATA_PATH . "/$file.json";
+    if (!file_exists($path)) return []; // Should not happen due to self-repair above
+    $content = file_get_contents($path);
+    $data = json_decode($content, true);
+    return is_array($data) ? $data : [];
+}
+
+function saveJSON($file, $data) {
+    $path = DATA_PATH . "/$file.json";
+    // LOCK_EX prevents data corruption
+    file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
 }
 ?>
 EOF
 
-# 4. Global CSS (Google Drive Aesthetic)
-cat << 'EOF' > file-explorer/public/assets/css/style.css
-body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; margin: 0; padding: 0; }
-.container { max-width: 1000px; margin: 30px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
-.btn { padding: 10px 18px; border-radius: 5px; border: none; cursor: pointer; text-decoration: none; font-size: 14px; display: inline-block; transition: 0.2s; }
-.btn-primary { background: #1a73e8; color: white; }
-.btn-secondary { background: #f1f3f4; color: #3c4043; border: 1px solid #dadce0; }
-.btn-danger { background: #ea4335; color: white; }
-.editor-container { height: 75vh; display: flex; flex-direction: column; }
-.editor-textarea { flex-grow: 1; border: 1px solid #dadce0; padding: 60px; font-size: 16px; resize: none; outline: none; line-height: 1.6; font-family: 'Courier New', monospace; }
-.file-item { border-bottom: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; }
-.alert { padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 14px; background: #e6f4ea; color: #137333; }
+# 5. Index Redirect
+cat << 'EOF' > mega-drive/index.php
+<?php
+session_start();
+if(isset($_SESSION['user'])) { header('Location: /public/explorer/dashboard.php'); exit; }
+header('Location: /public/auth/login.php');
+?>
 EOF
 
-# 5. Auth Pages
-cat << 'EOF' > file-explorer/public/auth/login.php
-<?php require_once '../../src/json.php'; session_start();
+# 6. Auth (Login & Signup)
+cat << 'EOF' > mega-drive/public/auth/login.php
+<?php
+require_once '../../src/json.php'; session_start();
 if($_POST){
-    foreach(getJSON('users.json') as $u) {
-        if($u['username']===$_POST['u'] && $u['password']===$_POST['p']){
-            $_SESSION['user']=$_POST['u']; header('Location: ../explorer/dashboard.php'); exit;
+    $users = getJSON('users');
+    foreach($users as $u){
+        if($u['u'] === $_POST['u'] && $u['p'] === $_POST['p']){
+            $_SESSION['user'] = $_POST['u'];
+            header('Location: ../explorer/dashboard.php'); exit;
         }
     }
-    $err = "Invalid login.";
-} ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container" style="max-width:400px; margin-top:100px;">
-    <h2>Login</h2>
-    <?php if(isset($err)) echo "<div class='alert' style='background:#fce8e6; color:#c5221f;'>$err</div>"; ?>
-    <form method="POST"><input type="text" name="u" placeholder="Username" required><input type="password" name="p" placeholder="Password" required><button class="btn btn-primary">Login</button></form>
-    <p>New? <a href="signup.php">Create Account</a></p>
-</div></body></html>
-EOF
-
-cat << 'EOF' > file-explorer/public/auth/signup.php
-<?php require_once '../../src/json.php';
-if($_POST){
-    $users = getJSON('users.json');
-    $users[] = ['username'=>$_POST['u'], 'password'=>$_POST['p']];
-    saveJSON('users.json', $users);
-    mkdir(STORAGE_PATH.'/users/'.$_POST['u'], 0777, true);
-    header('Location: login.php'); exit;
-} ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container" style="max-width:400px; margin-top:100px;">
-    <h2>Sign Up</h2>
-    <form method="POST"><input type="text" name="u" placeholder="Username" required><input type="password" name="p" placeholder="Password" required><button class="btn btn-primary">Register</button></form>
-</div></body></html>
-EOF
-
-# 6. Dashboard
-cat << 'EOF' > file-explorer/public/explorer/dashboard.php
-<?php require_once '../../src/auth.php'; requireLogin();
-$user = currentUser();
-$userDir = STORAGE_PATH . '/users/' . $user;
-if (!file_exists($userDir)) mkdir($userDir, 0777, true);
-$files = array_diff(scandir($userDir), array('.', '..')); ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container">
-    <div class="nav">
-        <div><strong>My Drive</strong> (<?php echo $user; ?>)</div>
-        <div>
-            <a href="public_files.php" class="btn btn-secondary">Gallery</a>
-            <a href="shared.php" class="btn btn-secondary">Access Shared</a>
-            <a href="manage_shares.php" class="btn btn-secondary">Shares</a>
-            <a href="../auth/logout.php" class="btn btn-danger">Logout</a>
+    $error = "Invalid username or password.";
+}
+?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"><title>Login</title></head><body>
+<div class="modal-overlay">
+    <div class="modal">
+        <h2>Mega Drive</h2>
+        <?php if(isset($error)) echo "<div style='color:red; margin-bottom:10px;'>$error</div>"; ?>
+        <form method="POST">
+            <input type="text" name="u" placeholder="Username" required>
+            <input type="password" name="p" placeholder="Password" required>
+            <button class="btn btn-primary" style="width:100%">Sign In</button>
+        </form>
+        <div style="margin-top:15px; font-size:13px;">
+            <a href="signup.php" style="color:var(--blue)">Create Account</a>
         </div>
     </div>
-    <a href="create.php" class="btn btn-primary" style="margin-bottom:20px;">+ New File</a>
-    <div class="file-list">
-        <?php foreach($files as $f): ?>
-            <div class="file-item">
-                <span>📄 <?php echo htmlspecialchars($f); ?></span>
-                <div>
-                    <a href="edit.php?file=<?php echo urlencode($f); ?>" class="btn btn-secondary">Open</a>
-                    <a href="share.php?file=<?php echo urlencode($f); ?>" class="btn btn-primary">Share</a>
+</div></body></html>
+EOF
+
+cat << 'EOF' > mega-drive/public/auth/signup.php
+<?php
+require_once '../../src/json.php';
+if($_POST){
+    $users = getJSON('users');
+    foreach($users as $u) { if($u['u'] === $_POST['u']) $error = "Username taken."; }
+    
+    if(!isset($error)) {
+        $users[] = ['u'=>$_POST['u'], 'p'=>$_POST['p']];
+        saveJSON('users', $users);
+        mkdir(STORAGE_PATH . '/users/' . $_POST['u'], 0777, true);
+        header('Location: login.php'); exit;
+    }
+}
+?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"><title>Sign Up</title></head><body>
+<div class="modal-overlay">
+    <div class="modal">
+        <h2>Sign Up</h2>
+        <?php if(isset($error)) echo "<div style='color:red; margin-bottom:10px;'>$error</div>"; ?>
+        <form method="POST">
+            <input type="text" name="u" placeholder="New Username" required>
+            <input type="password" name="p" placeholder="New Password" required>
+            <button class="btn btn-primary" style="width:100%">Register</button>
+        </form>
+        <div style="margin-top:15px; font-size:13px;">
+            <a href="login.php" style="color:var(--blue)">Back to Login</a>
+        </div>
+    </div>
+</div></body></html>
+EOF
+
+# 7. Dashboard (Main Logic)
+cat << 'EOF' > mega-drive/public/explorer/dashboard.php
+<?php
+require_once '../../src/json.php'; session_start();
+if(!isset($_SESSION['user'])) { header('Location: ../auth/login.php'); exit; }
+
+$user = $_SESSION['user'];
+$path = $_GET['path'] ?? $user;
+// Security: lock to user directory
+if(strpos($path, '..') !== false || strpos($path, $user) !== 0) $path = $user;
+
+$fullPath = STORAGE_PATH . "/users/" . $path;
+if(!is_dir($fullPath)) mkdir($fullPath, 0777, true);
+
+// Handle Uploads
+if(isset($_FILES['up_file'])) {
+    foreach($_FILES['up_file']['name'] as $i => $name) move_uploaded_file($_FILES['up_file']['tmp_name'][$i], $fullPath."/".$name);
+}
+// Handle Creation
+if(isset($_POST['new_folder'])) mkdir($fullPath."/".$_POST['new_folder'], 0777, true);
+if(isset($_POST['new_file'])) file_put_contents($fullPath."/".$_POST['new_file'], "");
+
+$items = array_diff(scandir($fullPath), ['.', '..']);
+?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"><title>Drive</title></head><body>
+<div class="nav">
+    <div class="logo"><span>☁️</span> Mega Drive</div>
+    <div style="display:flex; gap:10px;">
+        <a href="public.php" class="btn">🌎 Public</a>
+        <a href="shared_find.php" class="btn">🔓 Find Shared</a>
+        <a href="../auth/logout.php" class="btn btn-danger">Logout</a>
+    </div>
+</div>
+<div class="container">
+    <div class="card toolbar">
+        <form method="POST" enctype="multipart/form-data" style="margin:0;">
+            <input type="file" name="up_file[]" multiple id="up" style="display:none" onchange="this.form.submit()">
+            <button type="button" onclick="document.getElementById('up').click()" class="btn btn-primary">⬆ Upload</button>
+        </form>
+        <form method="POST" style="margin:0; display:flex;">
+            <input type="text" name="new_folder" placeholder="Folder Name" style="margin:0; width:120px; border-right:0; border-radius:4px 0 0 4px;" required>
+            <button class="btn" style="border-radius:0 4px 4px 0;">+ Folder</button>
+        </form>
+        <form method="POST" style="margin:0; display:flex;">
+            <input type="text" name="new_file" placeholder="File.txt" style="margin:0; width:120px; border-right:0; border-radius:4px 0 0 4px;" required>
+            <button class="btn" style="border-radius:0 4px 4px 0;">+ File</button>
+        </form>
+    </div>
+    
+    <div style="margin-bottom:15px; color:#5f6368;">Current: <b>/<?php echo $path; ?></b> <?php if($path !== $user): ?><a href="?path=<?php echo dirname($path); ?>" style="color:var(--blue); margin-left:10px;">⬆ Up</a><?php endif; ?></div>
+
+    <div class="grid">
+        <?php foreach($items as $i): 
+            $isDir = is_dir($fullPath."/".$i);
+            $ext = pathinfo($i, PATHINFO_EXTENSION);
+            if($isDir) $link = "?path=$path/$i";
+            elseif($ext == 'chat') $link = "chat.php?id=$i";
+            else $link = "editor.php?file=$i&owner=$user&path=$path";
+        ?>
+        <div class="file-card" onclick="location.href='<?php echo $link; ?>'">
+            <span class="icon"><?php echo $isDir ? '📁' : ($ext=='chat' ? '💬' : '📄'); ?></span>
+            <div class="filename"><?php echo $i; ?></div>
+            <?php if(!$isDir): ?>
+                <div class="meta" onclick="event.stopPropagation()">
+                    <a href="share_setup.php?file=<?php echo urlencode($i); ?>&path=<?php echo urlencode($path); ?>" style="color:var(--blue)">Share / Public</a>
                 </div>
-            </div>
+            <?php endif; ?>
+        </div>
         <?php endforeach; ?>
     </div>
 </div></body></html>
 EOF
 
-# 7. Create and Manage Shares
-cat << 'EOF' > file-explorer/public/explorer/create.php
-<?php require_once '../../src/auth.php'; requireLogin();
-if($_POST){
-    file_put_contents(STORAGE_PATH."/users/".currentUser()."/{$_POST['n']}.txt", "");
-    header("Location: dashboard.php"); exit;
-} ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container" style="max-width:400px;">
-    <h2>New File</h2>
-    <form method="POST"><input type="text" name="n" placeholder="Filename" required><button class="btn btn-primary">Create</button></form>
-</div></body></html>
-EOF
+# 8. Editor
+cat << 'EOF' > mega-drive/public/explorer/editor.php
+<?php
+require_once '../../src/json.php'; session_start();
+if(!isset($_SESSION['user'])) die("Login required");
 
-cat << 'EOF' > file-explorer/public/explorer/share.php
-<?php require_once '../../src/auth.php'; requireLogin();
-if($_POST){
-    $s = getJSON('shares.json');
-    $s[] = ['owner'=>currentUser(), 'filename'=>$_GET['file'], 'share_name'=>$_POST['sn'], 'password'=>$_POST['sp'], 'permission'=>$_POST['p'], 'is_public'=>isset($_POST['pub'])];
-    saveJSON('shares.json', $s);
-    $msg = "File Shared!";
-} ?>
+$file = $_GET['file'];
+$owner = $_GET['owner'];
+$path = $_GET['path'] ?? $owner; 
+$realPath = STORAGE_PATH . "/users/" . $path . "/" . $file;
+
+// Permissions
+$canEdit = false;
+if($_SESSION['user'] === $owner) {
+    $canEdit = true;
+} else {
+    $shares = getJSON('shares');
+    foreach($shares as $s) {
+        if($s['file'] === $file && $s['owner'] === $owner) {
+            if(isset($s['is_public']) && $s['is_public'] && $s['perm'] === 'edit') $canEdit = true;
+            if(isset($_SESSION['unlocked'][$s['alias']]) && $s['perm'] === 'edit') $canEdit = true;
+        }
+    }
+}
+
+$content = file_exists($realPath) ? file_get_contents($realPath) : "";
+$ext = pathinfo($file, PATHINFO_EXTENSION);
+$langMap = ['html'=>'html', 'php'=>'php', 'js'=>'javascript', 'css'=>'css', 'json'=>'json'];
+$lang = $langMap[$ext] ?? 'plaintext';
+?>
 <!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css">
-<script>function upd(){ let p=document.getElementById('pub').checked; document.getElementById('priv').style.display=p?'none':'block'; }</script></head><body>
-<div class="container" style="max-width:500px;">
-    <h2>Share Settings</h2>
-    <?php if(isset($msg)) echo "<div class='alert'>$msg</div>"; ?>
-    <form method="POST">
-        <label><input type="checkbox" name="pub" id="pub" onchange="upd()"> Make Public (Everyone can see)</label>
-        <div id="priv">
-            <input type="text" name="sn" placeholder="Share Alias (Friend uses this)">
-            <input type="text" name="sp" placeholder="Password (Optional)">
-        </div>
-        <select name="p"><option value="view">View Only</option><option value="edit">Can Edit</option></select>
-        <button class="btn btn-primary">Confirm Share</button> <a href="dashboard.php" class="btn btn-secondary">Back</a>
-    </form>
-</div></body></html>
-EOF
-
-cat << 'EOF' > file-explorer/public/explorer/manage_shares.php
-<?php require_once '../../src/auth.php'; requireLogin();
-$s = getJSON('shares.json');
-if(isset($_GET['del'])){ array_splice($s, $_GET['del'], 1); saveJSON('shares.json', $s); header("Location: manage_shares.php"); exit; } ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container">
-    <div class="nav"><h2>My Active Shares</h2><a href="dashboard.php" class="btn btn-secondary">Back</a></div>
-    <?php foreach($s as $i=>$sh): if($sh['owner']===currentUser()): ?>
-        <div class="file-item">
-            <span><b><?php echo $sh['filename']; ?></b> (Alias: <?php echo $sh['share_name']?:'Public'; ?>)</span>
-            <a href="?del=<?php echo $i; ?>" class="btn btn-danger">Unshare</a>
-        </div>
-    <?php endif; endforeach; ?>
-</div></body></html>
-EOF
-
-# 8. Editor (Auto-Save + PDF)
-cat << 'EOF' > file-explorer/public/explorer/edit.php
-<?php require_once '../../src/auth.php'; require_once '../../src/permissions.php'; requireLogin();
-$user = currentUser(); $file = $_GET['file']; $owner = $_GET['owner'] ?? $user;
-$access = canAccess($user, $file, $owner);
-if (!$access) die("Denied.");
-$path = STORAGE_PATH . "/users/$owner/$file";
-$content = file_exists($path) ? file_get_contents($path) : ""; ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script></head>
-<body><div class="container" style="max-width: 1100px;">
-    <div class="nav">
-        <h2><?php echo htmlspecialchars($file); ?> <small id="status" style="font-weight:normal; font-size:12px; color:gray;"><?php echo ($access==='view')?'(View Only)':''; ?></small></h2>
-        <div><button onclick="dlPDF()" class="btn btn-secondary">Download PDF</button> <a href="dashboard.php" class="btn btn-secondary">Close</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script><title>Editor</title></head><body>
+<div class="nav">
+    <div style="font-weight:bold;"><?php echo $file; ?> <span style="font-size:12px; font-weight:normal"><?php echo $canEdit ? '(Editing)' : '(Read Only)'; ?></span></div>
+    <div>
+        <span id="status" style="margin-right:15px; font-size:12px; color:green;"></span>
+        <?php if($canEdit): ?><button onclick="save()" class="btn btn-primary">Save Changes</button><?php endif; ?>
+        <button onclick="history.back()" class="btn">Close</button>
     </div>
-    <div id="pdf-area" style="display:none; padding:50px; white-space:pre-wrap; font-family: serif;"></div>
-    <div class="editor-container"><textarea id="editor" class="editor-textarea" <?php echo ($access==='view')?'readonly':''; ?>><?php echo htmlspecialchars($content); ?></textarea></div>
 </div>
+<div id="editor"></div>
 <script>
-function dlPDF() { const e = document.getElementById('pdf-area'); e.innerText = document.getElementById('editor').value; e.style.display='block'; html2pdf().from(e).save().then(()=>e.style.display='none'); }
-<?php if($access === 'edit'): ?>
-let t; document.getElementById('editor').addEventListener('input', () => {
-    document.getElementById('status').innerText = "Typing...";
-    clearTimeout(t);
-    t = setTimeout(() => {
+    var editor;
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('editor'), {
+            value: <?php echo json_encode($content); ?>, language: '<?php echo $lang; ?>', readOnly: <?php echo $canEdit ? 'false' : 'true'; ?>, theme: 'vs-light', automaticLayout: true
+        });
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, function() {
+            let url = prompt("Enter Link URL:");
+            if(url) {
+                let sel = editor.getSelection();
+                let text = editor.getModel().getValueInRange(sel);
+                editor.executeEdits("", [{ range: sel, text: `<a href="${url}">${text}</a>` }]);
+            }
+        });
+    });
+    function save() {
         document.getElementById('status').innerText = "Saving...";
-        let fd = new FormData(); fd.append('file','<?php echo $file; ?>'); fd.append('owner','<?php echo $owner; ?>'); fd.append('content', document.getElementById('editor').value);
-        fetch('api_save.php', {method:'POST', body:fd}).then(r=>r.json()).then(d=>{ document.getElementById('status').innerText = "Saved at " + d.time; });
-    }, 1500);
-});
-<?php endif; ?>
+        let fd = new FormData();
+        fd.append('path', '<?php echo $realPath; ?>');
+        fd.append('content', editor.getValue());
+        fetch('api_save.php', { method: 'POST', body: fd }).then(() => {
+            document.getElementById('status').innerText = "Saved!";
+            setTimeout(() => document.getElementById('status').innerText = "", 2000);
+        });
+    }
 </script></body></html>
 EOF
 
-# 9. Background Save API
-cat << 'EOF' > file-explorer/public/explorer/api_save.php
-<?php require_once '../../src/auth.php'; require_once '../../src/permissions.php'; requireLogin();
-if($_POST){
-    $access = canAccess(currentUser(), $_POST['file'], $_POST['owner']);
-    if($access === 'edit'){
-        file_put_contents(STORAGE_PATH."/users/{$_POST['owner']}/{$_POST['file']}", $_POST['content']);
-        echo json_encode(['status'=>'success', 'time'=>date('H:i:s')]); exit;
-    }
-} echo json_encode(['status'=>'error']);
-EOF
+# 9. Share Setup
+cat << 'EOF' > mega-drive/public/explorer/share_setup.php
+<?php
+require_once '../../src/json.php'; session_start();
+$user = $_SESSION['user']; $file = $_GET['file']; $path = $_GET['path'];
+$shares = getJSON('shares');
 
-# 10. Gallery and Finder
-cat << 'EOF' > file-explorer/public/explorer/public_files.php
-<?php require_once '../../src/auth.php'; $s = getJSON('shares.json'); ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container">
-    <div class="nav"><h2>Public Gallery</h2><a href="dashboard.php" class="btn btn-secondary">Back</a></div>
-    <?php foreach($s as $sh): if($sh['is_public']): ?>
-        <div class="file-item">
-            <span><?php echo $sh['filename']; ?> (by <?php echo $sh['owner']; ?>)</span>
-            <a href="edit.php?file=<?php echo urlencode($sh['filename']); ?>&owner=<?php echo urlencode($sh['owner']); ?>" class="btn btn-primary">Open</a>
-        </div>
-    <?php endif; endforeach; ?>
+if($_POST) {
+    if(isset($_POST['delete'])) {
+        foreach($shares as $k => $s) {
+            if($s['alias'] === $_POST['del_alias'] && $s['owner'] === $user) unset($shares[$k]);
+        }
+    } else {
+        $shares[] = [
+            'owner' => $user, 'path' => $path, 'file' => $file,
+            'alias' => $_POST['alias'], 'pass' => $_POST['pass'],
+            'perm' => $_POST['perm'], 'is_public' => isset($_POST['is_public'])
+        ];
+    }
+    saveJSON('shares', array_values($shares));
+}
+?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"></head><body>
+<div class="container" style="max-width:500px;">
+    <div class="card">
+        <h3>Share Settings: <?php echo $file; ?></h3>
+        <form method="POST">
+            <div style="background:#e8f0fe; padding:10px; border-radius:4px; margin-bottom:10px;">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                    <input type="checkbox" name="is_public"> <b>List in Public Gallery</b>
+                </label>
+            </div>
+            <label>Share Name (Alias)</label>
+            <input type="text" name="alias" placeholder="e.g. ProjectX" required>
+            <label>Password (Optional)</label>
+            <input type="text" name="pass" placeholder="Leave empty for none">
+            <label>Permissions</label>
+            <select name="perm"><option value="view">View Only</option><option value="edit">Allow Editing</option></select>
+            <button class="btn btn-primary" style="width:100%">Create Link</button>
+        </form>
+        <hr>
+        <h4>Active Links</h4>
+        <?php foreach($shares as $s): if($s['file'] === $file && $s['owner'] === $user): ?>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:10px 0;">
+                <div>
+                    <b><?php echo $s['alias']; ?></b> 
+                    <?php if(isset($s['is_public']) && $s['is_public']) echo "<span style='background:green; color:white; padding:2px 5px; font-size:10px; border-radius:4px;'>PUBLIC</span>"; ?>
+                </div>
+                <form method="POST" style="margin:0"><input type="hidden" name="delete" value="1"><input type="hidden" name="del_alias" value="<?php echo $s['alias']; ?>"><button class="btn btn-danger" style="font-size:12px; padding:4px 8px;">Unshare</button></form>
+            </div>
+        <?php endif; endforeach; ?>
+        <br><a href="dashboard.php" class="btn">Back</a>
+    </div>
 </div></body></html>
 EOF
 
-cat << 'EOF' > file-explorer/public/explorer/shared.php
-<?php require_once '../../src/auth.php'; requireLogin();
-if($_POST){
-    $shares = getJSON('shares.json'); $found = false;
-    foreach($shares as $s){
-        if($s['share_name']===$_POST['sn'] && ($s['is_public'] || $s['password']===$_POST['sp'])){
-            $_SESSION['unlocked_shares'][] = $s; $found = true;
+# 10. Public Gallery
+cat << 'EOF' > mega-drive/public/explorer/public.php
+<?php require_once '../../src/json.php'; $shares = getJSON('shares'); ?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"><title>Public Gallery</title></head><body>
+<div class="nav">
+    <div class="logo">🌎 Public Gallery</div>
+    <a href="dashboard.php" class="btn">Back to Drive</a>
+</div>
+<div class="container">
+    <div class="grid">
+        <?php foreach($shares as $s): if(isset($s['is_public']) && $s['is_public']): 
+             $link = "editor.php?file=" . urlencode($s['file']) . "&owner=" . urlencode($s['owner']) . "&path=" . urlencode($s['path']);
+        ?>
+        <div class="file-card" onclick="location.href='<?php echo $link; ?>'">
+            <span class="icon">📄</span>
+            <div class="filename"><?php echo $s['file']; ?></div>
+            <div class="meta">Owner: <?php echo $s['owner']; ?></div>
+            <div class="meta" style="color:green">Public Access</div>
+        </div>
+        <?php endif; endforeach; ?>
+    </div>
+</div></body></html>
+EOF
+
+# 11. Find Shared
+cat << 'EOF' > mega-drive/public/explorer/shared_find.php
+<?php
+require_once '../../src/json.php'; session_start();
+if($_POST) {
+    $shares = getJSON('shares');
+    foreach($shares as $s) {
+        if($s['alias'] === $_POST['alias'] && $s['pass'] === $_POST['pass']) {
+            $_SESSION['unlocked'][$s['alias']] = true;
+            header("Location: editor.php?file=" . urlencode($s['file']) . "&owner=" . urlencode($s['owner']) . "&path=" . urlencode($s['path']));
+            exit;
         }
     }
-    if(!$found) $err = "Not found.";
-} $unl = $_SESSION['unlocked_shares'] ?? []; ?>
-<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container">
-    <div class="nav"><h2>Find Private Share</h2><a href="dashboard.php" class="btn btn-secondary">Back</a></div>
-    <form method="POST"><input type="text" name="sn" placeholder="Share Alias"><input type="text" name="sp" placeholder="Password"><button class="btn btn-primary">Unlock</button></form>
-    <h3>Unlocked:</h3>
-    <?php foreach($unl as $u): ?>
-        <div class="file-item"><span><?php echo $u['filename']; ?></span> <a href="edit.php?file=<?php echo urlencode($u['filename']); ?>&owner=<?php echo urlencode($u['owner']); ?>" class="btn btn-secondary">Open</a></div>
-    <?php endforeach; ?>
+    $err = "Invalid Alias or Password";
+}
+?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"></head><body>
+<div class="container" style="max-width:400px; padding-top:50px;">
+    <div class="card">
+        <h3>Access Shared File</h3>
+        <?php if(isset($err)) echo "<p style='color:red'>$err</p>"; ?>
+        <form method="POST">
+            <input type="text" name="alias" placeholder="Share Name (Alias)" required>
+            <input type="password" name="pass" placeholder="Password (if any)">
+            <button class="btn btn-primary" style="width:100%">Unlock</button>
+        </form>
+        <br><a href="dashboard.php" class="btn">Back</a>
+    </div>
 </div></body></html>
 EOF
 
-# 11. Core Files
-echo "[]" > file-explorer/public/data/users.json
-echo "[]" > file-explorer/public/data/shares.json
-cat << 'EOF' > file-explorer/index.php
-<?php header('Location: public/auth/login.php'); ?>
-EOF
-cat << 'EOF' > file-explorer/public/auth/logout.php
-<?php session_start(); session_destroy(); header('Location: login.php'); ?>
+# 12. Chat (Fix: Initialize array correctly)
+cat << 'EOF' > mega-drive/public/explorer/chat.php
+<?php
+require_once '../../src/json.php'; session_start();
+$id = $_GET['id'];
+$allChats = getJSON('chats');
+
+if(isset($_POST['msg']) && !empty($_POST['msg'])) {
+    if(!isset($allChats[$id])) $allChats[$id] = [];
+    $allChats[$id][] = [
+        'u' => $_SESSION['user'],
+        'm' => $_POST['msg'],
+        't' => date('H:i')
+    ];
+    saveJSON('chats', $allChats);
+}
+?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"></head><body>
+<div class="nav">
+    <div class="logo">💬 Chat: <?php echo $id; ?></div>
+    <a href="dashboard.php" class="btn">Exit</a>
+</div>
+<div class="container">
+    <div id="chatbox" class="card" style="height: calc(100vh - 160px); overflow-y: auto; background:#f5f5f5; display:flex; flex-direction:column; gap:10px;">
+        <?php 
+        if(isset($allChats[$id])) {
+            foreach($allChats[$id] as $msg) {
+                $isMe = $msg['u'] === $_SESSION['user'];
+                echo "<div style='align-self:" . ($isMe ? 'flex-end' : 'flex-start') . "; background:" . ($isMe ? '#d2e3fc' : 'white') . "; padding:8px 12px; border-radius:12px; max-width:70%; box-shadow:0 1px 2px rgba(0,0,0,0.1);'>";
+                echo "<div style='font-size:10px; color:#555; margin-bottom:2px;'><b>" . $msg['u'] . "</b> " . $msg['t'] . "</div>";
+                echo "<div>" . htmlspecialchars($msg['m']) . "</div>";
+                echo "</div>";
+            }
+        }
+        ?>
+    </div>
+    <form method="POST" style="display:flex; gap:10px;">
+        <input type="text" name="msg" placeholder="Type a message..." autocomplete="off" style="margin:0;" autofocus required>
+        <button class="btn btn-primary">Send</button>
+    </form>
+</div>
+<script>
+    var box = document.getElementById('chatbox');
+    box.scrollTop = box.scrollHeight;
+    setTimeout(() => location.reload(), 3000);
+</script></body></html>
 EOF
 
-echo "Done! Run: cd file-explorer && git init && git add . && git commit -m 'Launch'"
+# 13. API Save
+cat << 'EOF' > mega-drive/public/explorer/api_save.php
+<?php
+if(isset($_POST['path']) && isset($_POST['content'])) {
+    file_put_contents($_POST['path'], $_POST['content']);
+    echo "OK";
+}
+?>
+EOF
+
+# 14. Logout
+cat << 'EOF' > mega-drive/public/auth/logout.php
+<?php session_start(); session_destroy(); header('Location: /'); ?>
+EOF
+
+echo "Initialization Complete. All Data files created. Run 'cd mega-drive' and deploy."
+</body>
+</html>

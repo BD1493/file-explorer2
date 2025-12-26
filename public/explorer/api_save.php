@@ -1,5 +1,6 @@
 <?php
-if(isset($_POST['p']) && isset($_POST['c'])) {
-    file_put_contents($_POST['p'], $_POST['c']);
+if(isset($_POST['path']) && isset($_POST['content'])) {
+    file_put_contents($_POST['path'], $_POST['content']);
+    echo "OK";
 }
 ?>

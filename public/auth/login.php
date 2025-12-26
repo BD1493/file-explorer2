@@ -8,19 +8,21 @@ if($_POST){
             header('Location: ../explorer/dashboard.php'); exit;
         }
     }
-    $err = "Incorrect username or password.";
+    $error = "Invalid username or password.";
 }
 ?>
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"></head><body>
-<div class="container" style="display:flex; justify-content:center; align-items:center; height:90vh;">
-    <div class="card" style="width:100%; max-width:400px;">
-        <h2>Sign In</h2>
-        <?php if(isset($err)) echo "<p style='color:red'>$err</p>"; ?>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"><title>Login</title></head><body>
+<div class="modal-overlay">
+    <div class="modal">
+        <h2>Mega Drive</h2>
+        <?php if(isset($error)) echo "<div style='color:red; margin-bottom:10px;'>$error</div>"; ?>
         <form method="POST">
             <input type="text" name="u" placeholder="Username" required>
             <input type="password" name="p" placeholder="Password" required>
-            <button class="btn btn-primary" style="width:100%; margin-top:10px;">Login</button>
+            <button class="btn btn-primary" style="width:100%">Sign In</button>
         </form>
-        <p style="text-align:center; margin-top:15px;"><a href="signup.php">Create an Account</a></p>
+        <div style="margin-top:15px; font-size:13px;">
+            <a href="signup.php" style="color:var(--blue)">Create Account</a>
+        </div>
     </div>
 </div></body></html>
