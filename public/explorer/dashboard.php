@@ -4,64 +4,46 @@ if(!isset($_SESSION['user'])) { header('Location: ../auth/login.php'); exit; }
 
 $user = $_SESSION['user'];
 $path = $_GET['path'] ?? $user;
-// Security: lock to user directory
 if(strpos($path, '..') !== false || strpos($path, $user) !== 0) $path = $user;
-
 $fullPath = STORAGE_PATH . "/users/" . $path;
 if(!is_dir($fullPath)) mkdir($fullPath, 0777, true);
 
-// Handle Uploads
-if(isset($_FILES['up_file'])) {
-    foreach($_FILES['up_file']['name'] as $i => $name) move_uploaded_file($_FILES['up_file']['tmp_name'][$i], $fullPath."/".$name);
+if($_SERVER['REQUEST_METHOD'] === 'POST'){
+    if(isset($_FILES['up'])){
+        foreach($_FILES['up']['name'] as $i => $n) move_uploaded_file($_FILES['up']['tmp_name'][$i], $fullPath."/".$n);
+    }
+    if(!empty($_POST['nf'])) mkdir($fullPath."/".$_POST['nf'], 0777, true);
+    if(!empty($_POST['nfile'])) file_put_contents($fullPath."/".$_POST['nfile'], "");
+    header("Location: dashboard.php?path=" . urlencode($path));
+    exit;
 }
-// Handle Creation
-if(isset($_POST['new_folder'])) mkdir($fullPath."/".$_POST['new_folder'], 0777, true);
-if(isset($_POST['new_file'])) file_put_contents($fullPath."/".$_POST['new_file'], "");
-
 $items = array_diff(scandir($fullPath), ['.', '..']);
 ?>
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../assets/css/style.css"><title>Drive</title></head><body>
+<!DOCTYPE html><html><head><link rel="stylesheet" href="../assets/css/style.css"><title>Drive</title></head><body>
 <div class="nav">
-    <div class="logo"><span>‚òÅÔ∏è</span> Mega Drive</div>
-    <div style="display:flex; gap:10px;">
-        <a href="public.php" class="btn">Public</a>
-        <a href="shared_find.php" class="btn">Find Shared</a>
+    <div style="font-weight:bold;">‚òÅÔ∏è Mega Drive: /<?=$path?></div>
+    <div>
+        <a href="public.php" class="btn">Ìºé Public</a>
         <a href="../auth/logout.php" class="btn btn-danger">Logout</a>
     </div>
 </div>
 <div class="container">
-    <div class="card toolbar">
-        <form method="POST" enctype="multipart/form-data" style="margin:0;">
-            <input type="file" name="up_file[]" multiple id="up" style="display:none" onchange="this.form.submit()">
-            <button type="button" onclick="document.getElementById('up').click()" class="btn btn-primary">‚¨Ü Upload</button>
-        </form>
-        <form method="POST" style="margin:0; display:flex;">
-            <input type="text" name="new_folder" placeholder="Folder Name" style="margin:0; width:120px; border-right:0; border-radius:4px 0 0 4px;" required>
-            <button class="btn" style="border-radius:0 4px 4px 0;">+ Folder</button>
-        </form>
-        <form method="POST" style="margin:0; display:flex;">
-            <input type="text" name="new_file" placeholder="File.txt" style="margin:0; width:120px; border-right:0; border-radius:4px 0 0 4px;" required>
-            <button class="btn" style="border-radius:0 4px 4px 0;">+ File</button>
-        </form>
+    <div class="card" style="display:flex; gap:10px;">
+        <form method="POST" enctype="multipart/form-data"><input type="file" name="up[]" multiple onchange="this.form.submit()" id="u" style="display:none;"><button type="button" onclick="document.getElementById('u').click()" class="btn btn-primary">Upload</button></form>
+        <form method="POST" style="display:flex; gap:5px;"><input name="nf" placeholder="Folder Name" style="width:120px;"><button class="btn">New Folder</button></form>
+        <form method="POST" style="display:flex; gap:5px;"><input name="nfile" placeholder="File.txt" style="width:120px;"><button class="btn">New File</button></form>
     </div>
-    
-    <div style="margin-bottom:15px; color:#5f6368;">Current: <b>/<?php echo $path; ?></b> <?php if($path !== $user): ?><a href="?path=<?php echo dirname($path); ?>" style="color:var(--blue); margin-left:10px;">‚¨Ü Up</a><?php endif; ?></div>
-
     <div class="grid">
         <?php foreach($items as $i): 
             $isDir = is_dir($fullPath."/".$i);
             $ext = pathinfo($i, PATHINFO_EXTENSION);
-            if($isDir) $link = "?path=$path/$i";
-            elseif($ext == 'chat') $link = "chat.php?id=$i";
-            else $link = "editor.php?file=$i&owner=$user&path=$path";
+            $url = $isDir ? "?path=$path/$i" : ($ext=="chat" ? "chat.php?id=$i" : "editor.php?file=$i&owner=$user&path=$path");
         ?>
-        <div class="file-card" onclick="location.href='<?php echo $link; ?>'">
-            <span class="icon"><?php echo $isDir ? '' : ($ext=='chat' ? '' : ''); ?></span>
-            <div class="filename"><?php echo $i; ?></div>
+        <div class="file-card" onclick="location.href='<?=$url?>'">
+            <div class="icon"><?=$isDir?'Ì≥Å':($ext=='chat'?'Ì≤¨':'Ì≥Ñ')?></div>
+            <div style="font-weight:500; font-size:13px;"><?=$i?></div>
             <?php if(!$isDir): ?>
-                <div class="meta" onclick="event.stopPropagation()">
-                    <a href="share_setup.php?file=<?php echo urlencode($i); ?>&path=<?php echo urlencode($path); ?>" style="color:var(--blue)">Share / Public</a>
-                </div>
+                <a href="share.php?file=<?=urlencode($i)?>&path=<?=urlencode($path)?>" style="margin-top:10px; color:var(--blue); font-size:11px;" onclick="event.stopPropagation()">Share Settings</a>
             <?php endif; ?>
         </div>
         <?php endforeach; ?>
