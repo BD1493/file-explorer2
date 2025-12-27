@@ -1,0 +1,23 @@
+body {
+    font-family: Arial;
+    padding: 20px;
+}
+
+input,
+select,
+button,
+textarea {
+    margin: 5px;
+    padding: 5px;
+}
+
+h1,
+h2,
+h3 {
+    margin-bottom: 10px;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}

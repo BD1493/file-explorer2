@@ -1,8 +1,14 @@
+# Use official PHP image
 FROM php:8.2-apache
-RUN a2enmod rewrite
-WORKDIR /var/www/html
+
+# Copy website files to Apache root
 COPY . /var/www/html/
-RUN chown -R www-data:www-data /var/www/html/public/data /var/www/html/public/storage
-RUN chmod -R 777 /var/www/html/public/data /var/www/html/public/storage
-RUN echo "upload_max_filesize=64M\npost_max_size=64M" > /usr/local/etc/php/conf.d/uploads.ini
+
+# Give write permissions for storage and data
+RUN chmod -R 777 /var/www/html/storage /var/www/html/data
+
+# Expose port 80
 EXPOSE 80
+
+# Start Apache in foreground
+CMD ["apache2-foreground"]
